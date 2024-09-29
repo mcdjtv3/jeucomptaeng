@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounting Simulator - Financial Statements</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 60%;
+            margin: auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        .question {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .options {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            background-color: #E25E3E;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #FF9B50;
+        }
+        .financial-state {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+        .state-container {
+            width: 30%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+        .state-container h3 {
+            text-align: center;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+        .popup h3 {
+            margin-top: 0;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Where should this expense be recorded?</h1>
+    <div id="game">
+        <p id="question"></p>
+        <div class="options">
+            <button onclick="checkAnswer('Balance Sheet')">Balance Sheet</button>
+            <button onclick="checkAnswer('Income Statement')">Income Statement</button>
+        </div>
+        <p id="feedback"></p>
+    </div>
+
+    <div class="financial-state">
+        <div class="state-container">
+            <h3>Assets</h3>
+            <ul id="actif-list"></ul>
+            <p>Total Assets: <span id="actif-total">100000</span> €</p>
+        </div>
+        <div class="state-container">
+            <h3>Liabilities</h3>
+            <ul id="passif-list"></ul>
+            <p>Total Liabilities: <span id="passif-total">100000</span> €</p>
+        </div>
+        <div class="state-container">
+            <h3>Income Statement</h3>
+            <ul id="compte-resultat-list"></ul>
+            <p>Total Income: <span id="compte-resultat-total">0</span> €</p>
+        </div>
+    </div>
+
+    <div id="equilibrium" style="text-align:center; margin-top: 20px;">
+        <p>Assets = Liabilities? <span id="equilibrium-status">Yes</span></p>
+    </div>
+</div>
+
+<div class="popup" id="popup">
+    <h3>Transaction Details</h3>
+    <p id="popup-content"></p>
+    <button onclick="closePopup()">Close</button>
+</div>
+<div class="overlay" id="overlay"></div>
+
+<script>
+    const questions = [
+        { text: "Josephine's company sold cakes for €15,000.", correct: "Income Statement", amount: 15000, category: "7 - Revenues", equivalent: "5 - Customers", cashFlow: "Operational Cash Inflow" },
+        { text: "Josephine's company paid €2,000 for employee salaries.", correct: "Income Statement", amount: -2000, category: "6 - Personnel Expenses", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine took out a bank loan of €50,000.", correct: "Balance Sheet", amount: 50000, category: "1 - Liabilities", equivalent: "5 - Bank", cashFlow: "Financing Cash Inflow" },
+        { text: "The company repaid €5,000 of its bank loan.", correct: "Balance Sheet", amount: -5000, category: "1 - Liabilities", equivalent: "5 - Bank", cashFlow: "Financing Cash Outflow" },
+        { text: "The company bought raw materials for €8,000.", correct: "Balance Sheet", amount: 8000, category: "3 - Inventory", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company received €1,500 in interest from the bank.", correct: "Income Statement", amount: 1500, category: "7 - Financial Revenues", equivalent: "5 - Bank", cashFlow: "Financing Cash Inflow" },
+        { text: "Josephine paid an electricity bill of €500.", correct: "Income Statement", amount: -500, category: "6 - External Charges", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "The company paid €3,000 for new computers.", correct: "Balance Sheet", amount: 3000, category: "2 - Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine received a VAT refund of €1,200.", correct: "Balance Sheet", amount: 1200, category: "4 - Tax Receivables", equivalent: "5 - Bank", cashFlow: "Operational Cash Inflow" },
+        { text: "Josephine's company paid €700 for advertising.", correct: "Income Statement", amount: -700, category: "6 - External Charges", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine invested €20,000 in new equipment for her business.", correct: "Balance Sheet", amount: 20000, category: "2 - Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "The company received €2,500 in advance payments from customers for a cake order.", correct: "Balance Sheet", amount: 2500, category: "4 - Customer Advances", equivalent: "5 - Bank", cashFlow: "Operational Cash Inflow" },
+        { text: "Josephine paid €1,800 for accounting consulting services.", correct: "Income Statement", amount: -1800, category: "6 - External Charges", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company bought shares for €1,090.", correct: "Balance Sheet", amount: 1090, category: "2 - Financial Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company bought shares for €1,100.", correct: "Balance Sheet", amount: 1100, category: "2 - Financial Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company bought shares for €1,110.", correct: "Balance Sheet", amount: 1110, category: "2 - Financial Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company bought shares for €1,120.", correct: "Balance Sheet", amount: 1120, category: "2 - Financial Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company bought shares for €1,130.", correct: "Balance Sheet", amount: 1130, category: "2 - Financial Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company bought shares for €1,140.", correct: "Balance Sheet", amount: 1140, category: "2 - Financial Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company bought shares for €1,150.", correct: "Balance Sheet", amount: 1150, category: "2 - Financial Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company bought shares for €1,160.", correct: "Balance Sheet", amount: 1160, category: "2 - Financial Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company paid rent of €3,200.", correct: "Income Statement", amount: -3200, category: "6 - Rental Expenses", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company received a €2,500 down payment from a customer.", correct: "Balance Sheet", amount: 2500, category: "4 - Customer Debts", equivalent: "5 - Bank", cashFlow: "Operational Cash Inflow" },
+        { text: "Josephine's company purchased office supplies for €400.", correct: "Income Statement", amount: -400, category: "6 - Operating Expenses", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company paid a dividend of €5,000.", correct: "Balance Sheet", amount: 5000, category: "4 - Short-Term Debts", equivalent: "5 - Bank", cashFlow: "Financial Cash Outflow" },
+        { text: "Josephine's company borrowed €10,000 from the bank.", correct: "Balance Sheet", amount: 10000, category: "1 - Bank Loans", equivalent: "5 - Bank", cashFlow: "Financial Cash Inflow" },
+        { text: "Josephine's company paid €100 in bank management fees.", correct: "Income Statement", amount: -100, category: "6 - Bank Fees", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company bought a new machine for €12,000.", correct: "Balance Sheet", amount: 12000, category: "2 - Tangible Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company paid an electricity bill of €600.", correct: "Income Statement", amount: -600, category: "6 - Operating Expenses", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company received rental income of €2,800.", correct: "Income Statement", amount: 2800, category: "7 - Rental Income", equivalent: "5 - Bank", cashFlow: "Operational Cash Inflow" },
+        { text: "Josephine's company sold goods on credit for €3,000.", correct: "Balance Sheet", amount: 3000, category: "7 - Sales", equivalent: "4 - Accounts Receivable", cashFlow: "None" },
+        { text: "Josephine's company paid an insurance premium of €900.", correct: "Income Statement", amount: -900, category: "6 - Operating Expenses", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company made a down payment of €2,000 for a new machine.", correct: "Balance Sheet", amount: 2000, category: "2 - Tangible Fixed Assets", equivalent: "5 - Bank", cashFlow: "Investment Cash Outflow" },
+        { text: "Josephine's company recorded an asset impairment of €3,500.", correct: "Income Statement", amount: -3500, category: "6 - Operating Expenses", equivalent: "2 - Tangible Fixed Assets", cashFlow: "None" },
+        { text: "Josephine's company issued shares for €5,000.", correct: "Balance Sheet", amount: 5000, category: "1 - Share Capital", equivalent: "5 - Bank", cashFlow: "Financial Cash Inflow" },
+        { text: "Josephine's company paid €700 for machine repairs.", correct: "Income Statement", amount: -700, category: "6 - Maintenance Expenses", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company repaid a bank loan of €6,000.", correct: "Balance Sheet", amount: -6000, category: "1 - Financial Debts", equivalent: "5 - Bank", cashFlow: "Financial Cash Outflow" },
+        { text: "Josephine's company received a payment of €4,000 for an outstanding customer invoice.", correct: "Balance Sheet", amount: -4000, category: "4 - Accounts Receivable", equivalent: "5 - Bank", cashFlow: "Operational Cash Inflow" },
+        { text: "Josephine's company paid €1,300 in professional fees.", correct: "Income Statement", amount: -1300, category: "6 - Operating Expenses", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company issued a bond loan of €20,000.", correct: "Balance Sheet", amount: 20000, category: "1 - Bond Loans", equivalent: "5 - Bank", cashFlow: "Financial Cash Inflow" },
+        { text: "Josephine's company made a loss on the sale of a fixed asset for €2,000.", correct: "Income Statement", amount: -2000, category: "6 - Operating Expenses", equivalent: "2 - Tangible Fixed Assets", cashFlow: "None" },
+        { text: "Josephine's company received €7,000 in subsidies.", correct: "Income Statement", amount: 7000, category: "7 - Operating Grants", equivalent: "5 - Bank", cashFlow: "Financial Cash Inflow" },
+        { text: "Josephine's company depreciated an asset for €5,000.", correct: "Income Statement", amount: -5000, category: "6 - Depreciation", equivalent: "2 - Tangible Fixed Assets", cashFlow: "None" },
+        { text: "Josephine's company paid a supplier invoice of €800.", correct: "Income Statement", amount: -800, category: "6 - Purchases", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company received €1,500 in dividends.", correct: "Income Statement", amount: 1500, category: "7 - Financial Revenues", equivalent: "5 - Bank", cashFlow: "Financial Cash Inflow" },
+        { text: "Josephine's company sold goods for €10,000.", correct: "Income Statement", amount: 10000, category: "7 - Sales", equivalent: "5 - Bank", cashFlow: "Operational Cash Inflow" },
+        { text: "Josephine's company paid a supplier €3,500.", correct: "Balance Sheet", amount: -3500, category: "4 - Supplier Debts", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" },
+        { text: "Josephine's company paid an insurance premium of €2,000.", correct: "Income Statement", amount: -2000, category: "6 - Operating Expenses", equivalent: "5 - Bank", cashFlow: "Operational Cash Outflow" }
+    ];
+
+    let currentQuestion = 0;
+    let actifTotal = 100000;
+    let passifTotal = 100000;
+    let compteResultatTotal = 0;
+    let bilanTotal = 100000; // Base liability total from Balance Sheet transactions
+    let resultatNetItem = null; // Single "Net Result" line
+
+    function checkAnswer(answer) {
+        const feedback = document.getElementById("feedback");
+        const question = questions[currentQuestion];
+
+        if (answer === question.correct) {
+            feedback.textContent = "Correct answer!";
+            feedback.style.color = "green";
+            addTransaction(answer, question.category, question.amount, question.cashFlow, question.equivalent);
+        } else {
+            feedback.textContent = "Incorrect answer. The correct answer was: " + question.correct;
+            feedback.style.color = "red";
+        }
+        setTimeout(nextQuestion, 2000); // Move to the next question after 2 seconds
+    }
+
+    function addTransaction(state, category, amount, cashFlow, equivalent) {
+        const listItem = document.createElement('li');
+        listItem.textContent = `${category}: ${amount} €`;
+        const equivalentItem = document.createElement('li');
+        equivalentItem.textContent = `${equivalent}: ${amount} €`;
+
+        if (state === "Balance Sheet") {
+            // Update Assets
+            document.getElementById("actif-list").appendChild(listItem);
+            actifTotal += amount;
+            document.getElementById("actif-total").textContent = actifTotal;
+
+            // Update Liabilities with counterpart
+            document.getElementById("passif-list").appendChild(equivalentItem);
+            bilanTotal += amount;
+            document.getElementById("passif-total").textContent = bilanTotal + compteResultatTotal;
+
+        } else if (state === "Income Statement") {
+            // Update Income Statement
+            document.getElementById("compte-resultat-list").appendChild(listItem);
+            compteResultatTotal += amount;
+            document.getElementById("compte-resultat-total").textContent = compteResultatTotal;
+
+            // Update or create single "Net Result" line
+            if (!resultatNetItem) {
+                resultatNetItem = document.createElement('li');
+                resultatNetItem.textContent = `Net Result: ${compteResultatTotal} €`;
+                document.getElementById("passif-list").appendChild(resultatNetItem);
+            } else {
+                resultatNetItem.textContent = `Net Result: ${compteResultatTotal} €`;
+            }
+
+            // Update Liabilities total based on Balance Sheet + Net Result
+            document.getElementById("passif-total").textContent = bilanTotal + compteResultatTotal;
+
+            // Update Assets with counterpart
+            document.getElementById("actif-list").appendChild(equivalentItem);
+            actifTotal += amount;
+            document.getElementById("actif-total").textContent = actifTotal;
+        }
+
+        showPopup(`${category}: ${amount} €<br>Cash Flow Variation: ${cashFlow}`);
+        checkEquilibrium();
+    }
+
+    function checkEquilibrium() {
+        const equilibriumStatus = document.getElementById("equilibrium-status");
+        if (actifTotal === bilanTotal + compteResultatTotal) {
+            equilibriumStatus.textContent = "Yes";
+            equilibriumStatus.style.color = "green";
+        } else {
+            equilibriumStatus.textContent = "No";
+            equilibriumStatus.style.color = "red";
+        }
+    }
+
+    function showPopup(content) {
+        document.getElementById("popup-content").innerHTML = content;
+        document.getElementById("popup").style.display = 'block';
+        document.getElementById("overlay").style.display = 'block';
+    }
+
+    function closePopup() {
+        document.getElementById("popup").style.display = 'none';
+        document.getElementById("overlay").style.display = 'none';
+    }
+
+    function nextQuestion() {
+        currentQuestion++;
+        if (currentQuestion < questions.length) {
+            document.getElementById("question").textContent = questions[currentQuestion].text;
+            document.getElementById("feedback").textContent = "";
+        } else {
+            document.getElementById("question").textContent = "Congratulations! You have completed the game.";
+            document.querySelector(".options").style.display = "none";
+        }
+    }
+
+    // Start the first question
+    document.getElementById("question").textContent = questions[currentQuestion].text;
+</script>
+
+</body>
+</html>
